@@ -1,0 +1,91 @@
+function FetchTopTeamGoogleResult() 
+{
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var workingSheet = ss.getSheetByName("Fetch Top Kws Google Search Results");
+  var tokenSheet = ss.getSheetByName("Google API Token");
+  var backendSheet = ss.getSheetByName("Backend");
+   
+  var rowEnd = backendSheet.getRange("B7").setValue(workingSheet.getLastRow());
+  var kwsSheet = ss.getSheetByName("Top Keywords");
+  var topKeywords = kwsSheet.getRange(2, 6,kwsSheet.getLastRow() - 1, 1).getValues();
+  var keydata = tokenSheet.getRange(2, 1, tokenSheet.getLastRow() - 1, 1).getValues();
+
+  var ExactMatchUrlMap = GetHashMap();
+  //var date = new Date();
+  var date = Utilities.formatDate(new Date(), "IST", "dd-MMM-yy")
+  var querycount = 1;
+  var ks = 0;
+  
+  var cx = '4cb01839ce43117b5';
+  
+  var start = 0;
+  var Search_Array = [];
+  var Keycounter = 0;
+  var hashMap = {};
+ 
+   for(var m=0; m<topKeywords.length; m++)   // Top Team Keywords loop "Stanford","Harvard" etc.
+   {
+       
+       var key = keydata[ks][0];
+        
+       var searchItem = topKeywords[m][0]; 
+         Logger.log(searchItem)
+         if (querycount >100)
+         {
+          ks = (~~(querycount/100)); // THis is to iterate next key when query exceeds 100 accordindly
+          if (ks >10)
+          {
+            ks = 10; 
+          }
+         }
+          
+         var page = 1;
+         var start = 0;
+         
+         for(var g=0; g<10; g++)          //Google search Pages loop
+         {
+           start = ((page - 1) * 10) + 1;  
+  
+          var api = 'https://www.googleapis.com/customsearch/v1?key='+key+'&cx='+cx+'&q='+ encodeURIComponent(searchItem)+"&alt=json"+"&start="+start;
+           //var api = 'https://www.googleapis.com/customsearch/v1?key='+keydata[Keycounter][0]+'&cx='+cx+'&q='+ encodeURIComponent(searchItem)+"&dateRestrict=d180"+"&sort=date:r:20200918:20200920"+"&alt=json"+"&start="+start;
+           querycount++;
+           
+           var response = UrlFetchApp.fetch(api, {muteHttpExceptions: true})
+           Logger.log(response)
+           if (response.getResponseCode() == 200) 
+           {
+             var content = JSON.parse(response);
+             var totalResults = content.searchInformation.totalResults;//"&start="+0+"&num="+30
+             
+              if (content.searchInformation.totalResults > 0) 
+              {            
+                  var count = content.items.length;
+                
+                 for (var i = 0; i < count; i++) 
+                 {
+                    
+                     
+                   var title = content.items[i].title;
+                   var snippet = content.items[i].snippet;
+                   var link = ""; 
+                       link = content.items[i].link
+                   var Str = "";
+                       Str = fetchDomain(link);
+                  // dotStr = Str.split(".");
+                       
+                    if(ExactMatchUrlMap[Str] != null)
+                    {
+                    if(hashMap[content.items[i].link] == undefined)
+                    {
+                     hashMap[content.items[i].link] = [content.items[i].link];
+                     Search_Array.push([searchItem,link,title,snippet,"","","","","",date]); 
+                     }
+                    }
+               }// i loop ends
+              } //end content if condition
+              if (content.searchInformation.totalResults <1) 
+              j=10; 
+           } //end response if condition
+           page = page + 1;
+         } //end pages(g) loop
+       } //end top team keywords loop(m) loop
